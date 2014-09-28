@@ -1,0 +1,30 @@
+Name:		ZTail-Tools
+Version:	1.0
+Author:		andrew.darqui@gmail.com
+Maintainer:     andrew.darqui@gmail.com
+License:        BSD3
+License-File:	LICENSE
+Synopsis:	Tools that use ZTail-Lib
+Description:	Tools that use ZTail-Lib
+Category:	System,Console
+Build-Type:	Simple
+Cabal-Version:	>= 1.8
+tested-with:    GHC == 7.6.2
+extra-source-files: README.md
+
+Source-Repository head
+    Type:	git
+    Location:	https://github.com/adarqui/ZTail-Tools
+
+Flag INotify
+    Description:	Enable inotify support
+    Default:		True
+
+Executable ztail-enqueue
+    Main-is:		ztail-enqueue.hs
+    HS-Source-Dirs:     tools
+    Build-Depends:	base == 4.*, bytestring, ZTail-Lib, Abstract
+    GHC-Options:        -O2
+    if flag(inotify)
+        Build-Depends:	hinotify >= 0.3.6
+        CPP-Options:	-DINOTIFY
