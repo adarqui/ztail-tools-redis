@@ -3,4 +3,4 @@ all:
 	cabal-meta install
 
 install:
-	cp .cabal-sandbox/bin/ztail /usr/local/bin/ztail
+	cp .cabal-sandbox/bin/ztail-enqueue /usr/local/bin/ztail-enqueue

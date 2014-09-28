@@ -7,11 +7,10 @@ import Abstract.Queue.Enq
 
 import qualified Data.ByteString.Char8 as B
 
-usage = "usage: ./ztail-enqueue <queue url://> <ztail args...>"
+usage = "usage: ./ztail-enqueue <queue-url://> <ztail-args...>"
 
 relay rq _ tp = do
  enqueue rq (show tp)
- putStrLn $ show tp
 
 main :: IO ()
 main = do
