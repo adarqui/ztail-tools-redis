@@ -23,7 +23,7 @@ Flag INotify
 Executable ztail-enqueue
     Main-is:		ztail-enqueue.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, ZTail-Lib, Abstract
+    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract
     GHC-Options:        -O2
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
