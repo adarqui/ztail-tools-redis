@@ -1,5 +1,5 @@
 Name:		ZTail-Tools
-Version:	1.0
+Version:	0.0.2
 Author:		andrew.darqui@gmail.com
 Maintainer:     andrew.darqui@gmail.com
 License:        BSD3
@@ -23,7 +23,7 @@ Flag INotify
 Executable ztail-enqueue
     Main-is:		ztail-enqueue.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract
+    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2
     GHC-Options:        -O2
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
@@ -32,7 +32,16 @@ Executable ztail-enqueue
 Executable ztail-logios
     Main-is:		ztail-logios.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract
+    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2
+    GHC-Options:        -O2
+    if flag(inotify)
+        Build-Depends:	hinotify >= 0.3.6
+        CPP-Options:	-DINOTIFY
+
+Executable ztail-dump
+    Main-is:		ztail-dump.hs
+    HS-Source-Dirs:     tools
+    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2, Abstract-Interfaces ==0.0.2, filepath, directory
     GHC-Options:        -O2
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
