@@ -28,3 +28,12 @@ Executable ztail-enqueue
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
         CPP-Options:	-DINOTIFY
+
+Executable ztail-logios
+    Main-is:		ztail-logios.hs
+    HS-Source-Dirs:     tools
+    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract
+    GHC-Options:        -O2
+    if flag(inotify)
+        Build-Depends:	hinotify >= 0.3.6
+        CPP-Options:	-DINOTIFY
