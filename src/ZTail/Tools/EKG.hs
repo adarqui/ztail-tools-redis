@@ -50,22 +50,6 @@ ekg'bootstrap port io = do
  io ekg
  getLineLoop
 
-{-
-main :: IO ()
-main = do
-    handle <- forkServer "localhost" 8000
-    counter <- getCounter "iterations" handle
-    label <- getLabel "args" handle
-    event <- getDistribution "runtime" handle
-    Label.set label "some text string"
-    let loop n = do
-            t <- timed $ evaluate $ mean [1..n]
-            Distribution.add event t
-            threadDelay 2000
-            Counter.inc counter
-            loop n
--}
-
 timed :: IO a -> IO Double
 timed m = do
     start <- getTime
