@@ -1,12 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module ZTail.Tools.EKG (
-{-
- module Distribution,
- module Counter,
- module Label,
- module Monitoring,
--}
  EKG(..),
  getLineLoop,
  ekg'bootstrap,
@@ -47,7 +41,7 @@ ekg'bootstrap port io = do
  label <- Monitoring.getLabel "argv" handle
  Label.set label $ T.pack $ concat $ intersperse " " argv
  let ekg = EKG { _server = handle, _logCounter = logCounter, _logDistribution = logDistribution, _lengthGauge = lengthGauge, _dequeueErrorCounter = dequeueErrorCounter }
- io ekg
+ forkIO $ io ekg
  getLineLoop
 
 timed :: IO a -> IO Double
