@@ -16,8 +16,27 @@ make
 Running
 ---
 
+logger:
+- This will monitor /var/log recursively, then shuttle logs to the redis endpoints specified
+
 ```
 ./.cabal-sandbox/bin/ztail-enqueue "adarq.org" '["redis://127.0.0.1:6379/key=logs","redis://127.0.0.1:6379/key=broadcast"]' -A -D /var/log/
+```
+
+dumper:
+- This will dump everything to /dump/<host>/path/...
+
+```
+./.cabal-sandbox/bin/ztail-dump /dump '["redis://localhost:6379/key=logs"]'
+```
+
+dumper api:
+- Dumper now comes with an api.. i'm adding EKG to everything.
+- Curl localhost:60000 to query dumper
+
+```
+# curl -H 'Accept: application/json' localhost:60000/logDistribution
+{"max":89,"mean":84,"count":6,"min":0.0,"variance":50,"type":"d","sum":504}
 ```
 
 redis monitor:
