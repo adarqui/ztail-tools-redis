@@ -23,32 +23,32 @@ Flag INotify
 Library
     HS-Source-Dirs:     src
     Exposed-Modules:    ZTail.Tools.EKG
-    Build-Depends:      base == 4.*, ekg, ekg-core, time, text
+    Build-Depends:      base == 4.*, ekg, ekg-core, time, text, hdaemonize
     GHC-Options:        -Wall
 
 Executable ztail-enqueue
     Main-is:		ztail-enqueue.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2, ekg, ekg-core, ZTail-Tools
-    GHC-Options:        -O2 -Wall -rtsopts
+    Build-Depends:	base == 4.*, bytestring, aeson, ekg, ekg-core, async, ZTail-Lib, Abstract ==0.0.2, ZTail-Tools
+    GHC-Options:        -O2 -Wall -rtsopts -threaded
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
         CPP-Options:	-DINOTIFY
 
-Executable ztail-logios
-    Main-is:		ztail-logios.hs
-    HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2
-    GHC-Options:        -O2 -Wall -rtsopts
-    if flag(inotify)
-        Build-Depends:	hinotify >= 0.3.6
-        CPP-Options:	-DINOTIFY
+-- Executable ztail-logios
+--    Main-is:		ztail-logios.hs
+--    HS-Source-Dirs:     tools
+--    Build-Depends:	base == 4.*, bytestring, aeson, ZTail-Lib, Abstract ==0.0.2
+--    GHC-Options:        -O2 -Wall -rtsopts
+--    if flag(inotify)
+--        Build-Depends:	hinotify >= 0.3.6
+--        CPP-Options:	-DINOTIFY
 
 Executable ztail-dump
     Main-is:		ztail-dump.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, filepath, directory, ekg, ekg-core, ZTail-Lib, ZTail-Tools, Abstract ==0.0.2, Abstract-Interfaces ==0.0.2
-    GHC-Options:        -O2 -Wall -rtsopts
+    Build-Depends:	base == 4.*, bytestring, aeson, filepath, directory, ekg, ekg-core, async, ZTail-Lib, ZTail-Tools, Abstract ==0.0.2, Abstract-Interfaces ==0.0.2
+    GHC-Options:        -O2 -Wall -rtsopts -threaded
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
         CPP-Options:	-DINOTIFY

@@ -14,6 +14,7 @@ import Control.Exception
 import Data.List
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Environment
+import System.Posix.Daemonize
 import qualified Data.Text as T
 import qualified System.Metrics.Distribution as Distribution
 import qualified System.Metrics.Counter as Counter
@@ -32,17 +33,17 @@ data EKG = EKG {
 getLineLoop = forever $ getLine >> putStrLn "Loop."
 
 ekg'bootstrap port io = do
- argv <- getArgs
- handle <- Monitoring.forkServer "0.0.0.0" port
- logCounter <- Monitoring.getCounter "logCounter" handle
- dequeueErrorCounter <- Monitoring.getCounter "dequeueErrorCounter" handle
- logDistribution <- Monitoring.getDistribution "logDistribution" handle
- lengthGauge <- Monitoring.getGauge "lengthGauge" handle
- label <- Monitoring.getLabel "argv" handle
- Label.set label $ T.pack $ concat $ intersperse " " argv
- let ekg = EKG { _server = handle, _logCounter = logCounter, _logDistribution = logDistribution, _lengthGauge = lengthGauge, _dequeueErrorCounter = dequeueErrorCounter }
- forkIO $ io ekg
- getLineLoop
+ daemonize $ do
+  argv <- getArgs
+  handle <- Monitoring.forkServer "0.0.0.0" port
+  logCounter <- Monitoring.getCounter "logCounter" handle
+  dequeueErrorCounter <- Monitoring.getCounter "dequeueErrorCounter" handle
+  logDistribution <- Monitoring.getDistribution "logDistribution" handle
+  lengthGauge <- Monitoring.getGauge "lengthGauge" handle
+  label <- Monitoring.getLabel "argv" handle
+  Label.set label $ T.pack $ concat $ intersperse " " argv
+  let ekg = EKG { _server = handle, _logCounter = logCounter, _logDistribution = logDistribution, _lengthGauge = lengthGauge, _dequeueErrorCounter = dequeueErrorCounter }
+  io ekg
 
 timed :: IO a -> IO Double
 timed m = do

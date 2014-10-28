@@ -25,7 +25,7 @@ import ZTail.Tools.EKG
 instance FromJSON (HostDataWrapper TailPacket)
 instance ToJSON (HostDataWrapper TailPacket)
 
-port = 60001
+port = 60002
 
 usage = "usage: ./ztail-enqueue <host-id-string> [<queue-url://>,..] <ztail-args...>"
 

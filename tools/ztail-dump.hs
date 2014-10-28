@@ -10,6 +10,7 @@ import Abstract.Queue
 import Abstract.Interfaces.Queue
 import Control.Monad
 import Control.Concurrent
+import Control.Concurrent.Async
 import Data.Aeson
 import Data.Maybe
 import Data.Int
@@ -38,7 +39,7 @@ data Dump = Dump {
 instance FromJSON (HostDataWrapper TailPacket)
 instance ToJSON (HostDataWrapper TailPacket)
 
-port = 60000
+port = 60001
 
 usage = "usage: ./ztail-dump <dir> [<queue-url://>,..]"
 
@@ -83,10 +84,11 @@ main' :: EKG -> IO ()
 main' ekg = do
  argv <- getArgs
  case argv of
-  (dir:urls:[]) -> dumper ekg dir (read urls :: [String])
+  (dir:urls:[]) -> dumper ekg dir (read urls :: [String]) >> return ()
   _ -> error usage
 
 dumper ekg dir urls = do
  rqs <- mapM (\url -> mkQueue url pack' unpack') urls
  let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
- mapM_ (\rq -> forkIO $ dump'Queues ekg dump rq) rqs
+ threads <- mapM (\rq -> async $ dump'Queues ekg dump rq) rqs
+ waitAnyCancel threads
