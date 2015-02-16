@@ -39,7 +39,7 @@ ekg'bootstrap port io = do
     daemonize $ do
         argv <- getArgs
         handle <- Monitoring.forkServer "0.0.0.0" port
-        Statsd.forkStatsd Statsd.defaultStatsdOptions (serverMetricStore handle)
+        Statsd.forkStatsd Statsd.defaultStatsdOptions (Monitoring.serverMetricStore handle)
         logCounter <- Monitoring.getCounter "logCounter" handle
         dequeueErrorCounter <- Monitoring.getCounter "dequeueErrorCounter" handle
         logDistribution <- Monitoring.getDistribution "logDistribution" handle
