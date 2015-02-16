@@ -28,6 +28,7 @@ import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Gauge as Gauge
 import qualified System.Metrics.Label as Label
 import qualified System.Remote.Monitoring as Monitoring
+import qualified System.Remote.Monitoring.Statsd as Statsd
 
 import ZTail.Tools.EKG
 
@@ -39,56 +40,64 @@ data Dump = Dump {
 instance FromJSON (HostDataWrapper TailPacket)
 instance ToJSON (HostDataWrapper TailPacket)
 
-port = 60001
 
+port = 60001
 usage = "usage: ./ztail-dump <dir> [<queue-url://>,..]"
+
 
 tp'pack v = lazyToStrict $ encode v
 tp'unpack v = fromJust $ (decode (strictToLazy v) :: Maybe (HostDataWrapper TailPacket))
+
 
 strictToLazy v = BSL.fromChunks [v]
 lazyToStrict v = BS.concat $ BSL.toChunks v
 encode'bsc v = lazyToStrict $ encode v
 
+
 pack' :: HostDataWrapper TailPacket -> BS.ByteString
 pack' tp = lazyToStrict $ encode $ tp
+
 
 unpack' :: BS.ByteString -> HostDataWrapper TailPacket
 unpack' v = fromJust $ decode' $ strictToLazy v
 
+
 dump'Queues EKG{..} Dump{..} rq = do
- forever $ do
-  tp <- blDequeue rq
-  case tp of
-   (Just tp') -> do
-    let d' = (d tp')
-    let buf' = (buf d' ++ "\n")
-    let logpath = (_dir ++ "/" ++ (h tp') ++ "/" ++ (path d'))
-    let basename = takeDirectory logpath
-    let len = length (buf d')
-    createDirectoryIfMissing True basename
-    appendFile logpath buf'
-    Counter.inc _logCounter
-    Gauge.add _lengthGauge (fromIntegral len :: Int64)
-    Distribution.add _logDistribution (fromIntegral len :: Double)
-    return ()
-   Nothing -> do
-    Counter.inc _dequeueErrorCounter
-    threadDelay 1000000
+    forever $ do
+        tp <- blDequeue rq
+        case tp of
+            (Just tp') -> do
+                let d' = (d tp')
+                let buf' = (buf d' ++ "\n")
+                let logpath = (_dir ++ "/" ++ (h tp') ++ "/" ++ (path d'))
+                let basename = takeDirectory logpath
+                let len = length (buf d')
+                createDirectoryIfMissing True basename
+                appendFile logpath buf'
+                Counter.inc _logCounter
+                Gauge.add _lengthGauge (fromIntegral len :: Int64)
+                Distribution.add _logDistribution (fromIntegral len :: Double)
+                return ()
+            Nothing -> do
+                Counter.inc _dequeueErrorCounter
+                threadDelay 1000000
+
 
 main :: IO ()
 main = do
- ekg'bootstrap port main'
+    ekg'bootstrap port main'
+
 
 main' :: EKG -> IO ()
 main' ekg = do
- argv <- getArgs
- case argv of
-  (dir:urls:[]) -> dumper ekg dir (read urls :: [String]) >> return ()
-  _ -> error usage
+    argv <- getArgs
+    case argv of
+        (dir:urls:[]) -> dumper ekg dir (read urls :: [String]) >> return ()
+        _ -> error usage
+
 
 dumper ekg dir urls = do
- rqs <- mapM (\url -> mkQueue url pack' unpack') urls
- let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
- threads <- mapM (\rq -> async $ dump'Queues ekg dump rq) rqs
- waitAnyCancel threads
+    rqs <- mapM (\url -> mkQueue url pack' unpack') urls
+    let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
+    threads <- mapM (\rq -> async $ dump'Queues ekg dump rq) rqs
+    waitAnyCancel threads

@@ -23,13 +23,13 @@ Flag INotify
 Library
     HS-Source-Dirs:     src
     Exposed-Modules:    ZTail.Tools.EKG
-    Build-Depends:      base == 4.*, ekg, ekg-core, time, text, hdaemonize
+    Build-Depends:      base == 4.*, ekg, ekg-core, ekg-statsd, time, text, hdaemonize
     GHC-Options:        -Wall
 
 Executable ztail-enqueue
     Main-is:		ztail-enqueue.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, ekg, ekg-core, async, ZTail-Lib, Abstract ==0.0.2, ZTail-Tools
+    Build-Depends:	base == 4.*, bytestring, aeson, ekg, ekg-core, ekg-statsd, async, ZTail-Lib, Abstract ==0.0.2, ZTail-Tools
     GHC-Options:        -O2 -Wall -rtsopts -threaded
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
@@ -47,7 +47,7 @@ Executable ztail-enqueue
 Executable ztail-dump
     Main-is:		ztail-dump.hs
     HS-Source-Dirs:     tools
-    Build-Depends:	base == 4.*, bytestring, aeson, filepath, directory, ekg, ekg-core, async, ZTail-Lib, ZTail-Tools, Abstract ==0.0.2, Abstract-Interfaces ==0.0.2
+    Build-Depends:	base == 4.*, bytestring, aeson, filepath, directory, ekg, ekg-core, ekg-statsd, async, ZTail-Lib, ZTail-Tools, Abstract ==0.0.2, Abstract-Interfaces ==0.0.2
     GHC-Options:        -O2 -Wall -rtsopts -threaded
     if flag(inotify)
         Build-Depends:	hinotify >= 0.3.6
