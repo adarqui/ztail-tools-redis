@@ -35,28 +35,30 @@ import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
 dump'Queues redis_host EKG{..} Dump{..} = do
-    q <- Redis.connect Redis.defaultConnectInfo
-    forever $ do
-        result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
-        case result of
-            (Left err) -> putStrLn (show err)
-            (Right Nothing) -> putStrLn "nothing"
-            (Right (Just tp)) -> do
-                case (unpack (snd tp)) of
-                    (Just tp') -> do
-                        let d' = (d tp')
-                        let buf' = (buf d' ++ "\n")
-                        let logpath = (_dir ++ "/" ++ (h tp') ++ "/" ++ (path d'))
-                        let basename = takeDirectory logpath
-                        let len = length (buf d')
-                        createDirectoryIfMissing True basename
-                        appendFile logpath buf'
-                        Counter.inc _logCounter
-                        Gauge.add _lengthGauge (fromIntegral len :: Int64)
-                        Distribution.add _logDistribution (fromIntegral len :: Double)
-                        return ()
-                    Nothing -> do
-                        threadDelay 1000000
+--    q <- Redis.connect Redis.defaultConnectInfo
+    putStrLn "dump'Queues"
+    safeConnect redis_host $ \q -> do
+        forever $ do
+            result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
+            case result of
+                (Left err) -> putStrLn (show err)
+                (Right Nothing) -> putStrLn "nothing"
+                (Right (Just tp)) -> do
+                    case (unpack (snd tp)) of
+                        (Just tp') -> do
+                            let d' = (d tp')
+                            let buf' = (buf d' ++ "\n")
+                            let logpath = (_dir ++ "/" ++ (h tp') ++ "/" ++ (path d'))
+                            let basename = takeDirectory logpath
+                            let len = length (buf d')
+                            createDirectoryIfMissing True basename
+                            appendFile logpath buf'
+                            Counter.inc _logCounter
+                            Gauge.add _lengthGauge (fromIntegral len :: Int64)
+                            Distribution.add _logDistribution (fromIntegral len :: Double)
+                            return ()
+                        Nothing -> do
+                            sleep 1
 
 dump_main :: String -> String -> IO ()
 dump_main redis_host dir = do
@@ -64,9 +66,12 @@ dump_main redis_host dir = do
 
 main' :: String -> String -> EKG -> IO ()
 main' redis_host dir ekg = do
-    dumper redis_host ekg dir redis_host >> return ()
+    forever $ do
+        dumper redis_host ekg dir redis_host
+        putStrLn "sleep"
 
 dumper redis_host ekg dir urls = do
+    putStrLn "dumper"
     let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
     dump'Queues redis_host ekg dump
     dumper redis_host ekg dir urls

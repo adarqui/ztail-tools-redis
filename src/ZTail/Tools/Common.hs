@@ -14,7 +14,9 @@ module ZTail.Tools.Common (
     strictToLazy,
     lazyToStrict,
     encode'bsc,
-    port
+    port,
+    safeConnect,
+    sleep
 ) where
 
 import ZTail
@@ -22,6 +24,11 @@ import Control.Monad
 import Data.Aeson
 import Data.Maybe
 import Data.Int
+
+import Control.Exception
+import Control.Concurrent
+
+import qualified Database.Redis as Redis
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -60,3 +67,27 @@ unpack' v = fromJust $ decode' $ strictToLazy v
 strictToLazy v = BSL.fromChunks [v]
 lazyToStrict v = BS.concat $ BSL.toChunks v
 encode'bsc v = lazyToStrict $ encode v
+
+safeConnect :: String -> (Redis.Connection -> IO ()) -> IO ()
+safeConnect redis_host cb = do
+    catches
+        (do
+            q <- Redis.connect Redis.defaultConnectInfo
+            cb q
+        )
+        [Handler someExceptionHandler, Handler redisExceptionHandler]
+    where
+        putErr e = putStrLn $ "connectEndpoints: " ++ show e
+        someExceptionHandler :: SomeException -> IO ()
+        someExceptionHandler e = putErr e >> sleep 1
+        redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
+        redisExceptionHandler e = putErr e >> sleep 1
+
+{-
+    bracket
+        (do Redis.connect Redis.defaultConnectInfo)
+        (\q -> cb q)
+        (\_ -> return ())
+-}
+
+sleep n = threadDelay (n * 1000000)

@@ -29,10 +29,8 @@ import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
 relay EKG{..} wrapper q _ tp = do
---    return ()
     putStrLn "relay!!"
     result <- Redis.runRedis q $ do Redis.rpush "ztail" [tp'pack (wrapper { d = tp })]
-    -- stats
     let len = length $ buf tp
     Counter.inc _logCounter
     Gauge.add _lengthGauge (fromIntegral len :: Int64)
@@ -46,11 +44,12 @@ enqueue_main host_id redis_host params = do
 main' :: String -> String -> [String] -> EKG -> IO ()
 main' host_id redis_host params ekg = do
     putStrLn "main'"
-    logger host_id redis_host params ekg
+    forever $ do
+        logger host_id redis_host params ekg
 
 logger host_id redis_host params ekg = do
     putStrLn "logger"
-    q <- Redis.connect Redis.defaultConnectInfo
-    let wrapper = HostDataWrapper { h = host_id }
-    tails <- parse_args params
-    run_main params tailText $ map (\t -> t { ioAct = relay ekg wrapper q}) tails
+    safeConnect redis_host $ \q -> do
+        let wrapper = HostDataWrapper { h = host_id }
+        tails <- parse_args params
+        run_main params tailText $ map (\t -> t { ioAct = relay ekg wrapper q}) tails
