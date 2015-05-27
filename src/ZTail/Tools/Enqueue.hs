@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, FlexibleInstances, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module ZTail.Tools.Enqueue (
     enqueue_main
@@ -23,8 +24,6 @@ import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Gauge as Gauge
 import qualified System.Metrics.Label as Label
 import qualified System.Remote.Monitoring as Monitoring
-
-import GHC.Generics
 
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
