@@ -1,6 +1,0 @@
-.
-https://github.com/adarqui/ZTail-Lib
-https://github.com/adarqui/Abstract
-https://github.com/adarqui/Abstract-Interfaces
-https://github.com/tibbe/ekg
-https://github.com/tibbe/ekg-core

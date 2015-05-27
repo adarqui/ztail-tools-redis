@@ -1,0 +1,49 @@
+Name:		            ztail-tools-redis
+Version:	          0.0.1
+Author:		          andrew.darqui@gmail.com
+Maintainer:         andrew.darqui@gmail.com
+License:            MIT
+License-File:	      LICENSE
+Synopsis:	          Tools (redis) that use ZTail-Lib
+Description:	      Tools (redis) that use ZTail-Lib
+Category:	          System,Console
+Build-Type:	        Simple
+Cabal-Version:	    >= 1.8
+tested-with:        GHC == 7.6.2
+extra-source-files: README.md
+
+Source-Repository head
+  Type:             git
+  Location:	        https://github.com/adarqui/ztail-tools-redis
+
+Flag INotify
+  Description:	    Enable inotify support
+  Default:		      True
+
+Library
+  HS-Source-Dirs:   src
+  Exposed-Modules:  
+                    ZTail.Tools.Enqueue,
+                    ZTail.Tools.Dump,
+                    ZTail.Tools.Common,
+                    ZTail.Tools.EKG
+  Build-Depends:    base == 4.*, bytestring, aeson, async, ekg, ekg-core, time, text, hdaemonize, hedis, ZTail-Lib == 1.1
+  GHC-Options:      -Wall
+
+Executable ztail-enqueue
+  Main-is:		      ztail-enqueue.hs
+  HS-Source-Dirs:   tools
+  Build-Depends:	  base == 4.*, bytestring, aeson, ekg, ekg-core, async, ZTail-Lib, ztail-tools-redis
+  GHC-Options:      -O2 -Wall -rtsopts -threaded
+  if flag(inotify)
+    Build-Depends:	hinotify >= 0.3.6
+    CPP-Options:	  -DINOTIFY
+
+Executable ztail-dump
+  Main-is:		      ztail-dump.hs
+  HS-Source-Dirs:   tools
+  Build-Depends:	  base == 4.*, bytestring, aeson, filepath, directory, ekg, ekg-core, async, ZTail-Lib, ztail-tools-redis
+  GHC-Options:      -O2 -Wall -rtsopts -threaded
+  if flag(inotify)
+    Build-Depends:	hinotify >= 0.3.6
+    CPP-Options:	  -DINOTIFY

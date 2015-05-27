@@ -1,13 +1,8 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, FlexibleInstances, RecordWildCards #-}
 
-{- FIXME: fuck man.. this should be mkQueue'Deq not mkQueue.. having problems compiling, cabal dependency hell wreckage -}
-
 import System.Environment
 
 import ZTail
-import Abstract.Wrapper
-import Abstract.Queue
-import Abstract.Interfaces.Queue
 import Control.Monad
 import Control.Concurrent
 import Control.Concurrent.Async
@@ -28,7 +23,6 @@ import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Gauge as Gauge
 import qualified System.Metrics.Label as Label
 import qualified System.Remote.Monitoring as Monitoring
-import qualified System.Remote.Monitoring.Statsd as Statsd
 
 import ZTail.Tools.EKG
 
@@ -37,9 +31,13 @@ data Dump = Dump {
  _all :: String
 } deriving (Show, Read)
 
+main :: IO ()
+main= do
+    return ()
+
+{-
 instance FromJSON (HostDataWrapper TailPacket)
 instance ToJSON (HostDataWrapper TailPacket)
-
 
 port = 60001
 usage = "usage: ./ztail-dump <dir> [<queue-url://>,..]"
@@ -101,3 +99,4 @@ dumper ekg dir urls = do
     let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
     threads <- mapM (\rq -> async $ dump'Queues ekg dump rq) rqs
     waitAnyCancel threads
+-}
