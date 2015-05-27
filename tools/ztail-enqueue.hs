@@ -6,7 +6,7 @@ import System.Environment
 
 usage :: IO ()
 usage = do
-    putStrLn "usage: ./ztail-enqueue-redis <host-id-string> <redis-host>"
+    putStrLn "usage: ./ztail-enqueue-redis <host_identifier> <host1,host2,host3,...hostN>"
 
 main :: IO ()
 main = do

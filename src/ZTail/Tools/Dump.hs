@@ -34,26 +34,27 @@ import qualified System.Remote.Monitoring as Monitoring
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
-dumpMain :: Redis.ConnectInfo -> String -> IO ()
-dumpMain redis_ci dir = do
-    ekg'bootstrap (port+1) (dumpMain' redis_ci dir)
+dumpMain :: [Redis.ConnectInfo] -> String -> IO ()
+dumpMain hosts dir = do
+    putStrLn "WTFFFFFFFFFFFFFFFFFFF"
+    mapM_ (putStrLn . Redis.connectHost) hosts
+    ekg'bootstrap (port+1) (dumpMain' hosts dir)
 
-dumpMain' :: Redis.ConnectInfo -> String -> EKG -> IO ()
-dumpMain' redis_ci dir ekg = do
+dumpMain' :: [Redis.ConnectInfo] -> String -> EKG -> IO ()
+dumpMain' hosts dir ekg = do
     forever $ do
-        dumper redis_ci ekg dir
+        dumper hosts ekg dir
         putStrLn "sleep"
 
-dumper redis_ci ekg dir = do
+dumper hosts ekg dir = do
     putStrLn "dumper"
     let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
-    dump'Queues redis_ci ekg dump
-    dumper redis_ci ekg dir
+    threads <- mapM (\host' -> async $ dump'Queues host' ekg dump) hosts
+    waitAnyCancel threads
 
-dump'Queues redis_ci EKG{..} Dump{..} = do
---    q <- Redis.connect Redis.defaultConnectInfo
+dump'Queues hosts EKG{..} Dump{..} = do
     putStrLn "dump'Queues"
-    safeConnect redis_ci $ \q -> do
+    safeConnect hosts $ \q -> do
         forever $ do
             result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
             case result of

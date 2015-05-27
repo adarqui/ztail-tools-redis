@@ -6,12 +6,12 @@ import System.Environment
 
 usage :: IO ()
 usage = do
-    putStrLn "usage: ./ztail-dump-redis <redis-host> <dir>"
+    putStrLn "usage: ./ztail-dump-redis <host> <output_directory>"
 
 main :: IO ()
 main = do
     argv <- getArgs
     case argv of
-        (redis_host:dir:[]) -> do
-            dumpMain (redisHost redis_host) dir
+        (redis_hosts:dir:[]) -> do
+            dumpMain (splitRedisHosts redis_hosts) dir
         _ -> usage
