@@ -16,7 +16,9 @@ module ZTail.Tools.Common (
     encode'bsc,
     port,
     safeConnect,
-    sleep
+    sleep,
+    splitRedisHosts,
+    redisHost
 ) where
 
 import ZTail
@@ -24,6 +26,7 @@ import Control.Monad
 import Data.Aeson
 import Data.Maybe
 import Data.Int
+import Data.List.Split
 
 import Control.Exception
 import Control.Concurrent
@@ -68,8 +71,8 @@ strictToLazy v = BSL.fromChunks [v]
 lazyToStrict v = BS.concat $ BSL.toChunks v
 encode'bsc v = lazyToStrict $ encode v
 
-safeConnect :: String -> (Redis.Connection -> IO ()) -> IO ()
-safeConnect redis_host cb = do
+safeConnect :: Redis.ConnectInfo -> (Redis.Connection -> IO ()) -> IO ()
+safeConnect redis_ci cb = do
     catches
         (do
             q <- Redis.connect Redis.defaultConnectInfo
@@ -91,3 +94,9 @@ safeConnect redis_host cb = do
 -}
 
 sleep n = threadDelay (n * 1000000)
+
+splitRedisHosts :: String -> [Redis.ConnectInfo]
+splitRedisHosts s = map redisHost $ splitOn "," s
+
+redisHost :: String -> Redis.ConnectInfo
+redisHost host = Redis.defaultConnectInfo { Redis.connectHost = host }

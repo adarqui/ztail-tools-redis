@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module ZTail.Tools.Enqueue (
-    enqueue_main
+    enqueueMain
 ) where
 
 import System.Environment
@@ -28,6 +28,24 @@ import qualified System.Remote.Monitoring as Monitoring
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
+enqueueMain :: String -> Redis.ConnectInfo -> [String] -> IO ()
+enqueueMain host_id redis_ci params = do
+    putStrLn "enqueue_main"
+    ekg'bootstrap port (enqueueMain' host_id redis_ci params)
+
+enqueueMain' :: String -> Redis.ConnectInfo -> [String] -> EKG -> IO ()
+enqueueMain' host_id redis_ci params ekg = do
+    putStrLn "main'"
+    forever $ do
+        logger host_id redis_ci params ekg
+
+logger host_id redis_ci params ekg = do
+    putStrLn "logger"
+    safeConnect redis_ci $ \q -> do
+        let wrapper = HostDataWrapper { h = host_id }
+        tails <- parse_args params
+        run_main params tailText $ map (\t -> t { ioAct = relay ekg wrapper q}) tails
+
 relay EKG{..} wrapper q _ tp = do
     putStrLn "relay!!"
     result <- Redis.runRedis q $ do Redis.rpush "ztail" [tp'pack (wrapper { d = tp })]
@@ -35,21 +53,3 @@ relay EKG{..} wrapper q _ tp = do
     Counter.inc _logCounter
     Gauge.add _lengthGauge (fromIntegral len :: Int64)
     Distribution.add _logDistribution (fromIntegral len :: Double)
-
-enqueue_main :: String -> String -> [String] -> IO ()
-enqueue_main host_id redis_host params = do
-    putStrLn "enqueue_main"
-    ekg'bootstrap port (main' host_id redis_host params)
-
-main' :: String -> String -> [String] -> EKG -> IO ()
-main' host_id redis_host params ekg = do
-    putStrLn "main'"
-    forever $ do
-        logger host_id redis_host params ekg
-
-logger host_id redis_host params ekg = do
-    putStrLn "logger"
-    safeConnect redis_host $ \q -> do
-        let wrapper = HostDataWrapper { h = host_id }
-        tails <- parse_args params
-        run_main params tailText $ map (\t -> t { ioAct = relay ekg wrapper q}) tails

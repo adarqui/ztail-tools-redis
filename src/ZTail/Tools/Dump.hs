@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module ZTail.Tools.Dump (
-    dump_main
+    dumpMain
 ) where
 
 import System.Environment
@@ -34,10 +34,26 @@ import qualified System.Remote.Monitoring as Monitoring
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
-dump'Queues redis_host EKG{..} Dump{..} = do
+dumpMain :: Redis.ConnectInfo -> String -> IO ()
+dumpMain redis_ci dir = do
+    ekg'bootstrap (port+1) (dumpMain' redis_ci dir)
+
+dumpMain' :: Redis.ConnectInfo -> String -> EKG -> IO ()
+dumpMain' redis_ci dir ekg = do
+    forever $ do
+        dumper redis_ci ekg dir
+        putStrLn "sleep"
+
+dumper redis_ci ekg dir = do
+    putStrLn "dumper"
+    let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
+    dump'Queues redis_ci ekg dump
+    dumper redis_ci ekg dir
+
+dump'Queues redis_ci EKG{..} Dump{..} = do
 --    q <- Redis.connect Redis.defaultConnectInfo
     putStrLn "dump'Queues"
-    safeConnect redis_host $ \q -> do
+    safeConnect redis_ci $ \q -> do
         forever $ do
             result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
             case result of
@@ -59,19 +75,3 @@ dump'Queues redis_host EKG{..} Dump{..} = do
                             return ()
                         Nothing -> do
                             sleep 1
-
-dump_main :: String -> String -> IO ()
-dump_main redis_host dir = do
-    ekg'bootstrap (port+1) (main' redis_host dir)
-
-main' :: String -> String -> EKG -> IO ()
-main' redis_host dir ekg = do
-    forever $ do
-        dumper redis_host ekg dir redis_host
-        putStrLn "sleep"
-
-dumper redis_host ekg dir urls = do
-    putStrLn "dumper"
-    let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
-    dump'Queues redis_host ekg dump
-    dumper redis_host ekg dir urls

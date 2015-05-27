@@ -1,6 +1,7 @@
 module Main where
 
 import ZTail.Tools.Dump
+import ZTail.Tools.Common
 import System.Environment
 
 usage :: IO ()
@@ -12,5 +13,5 @@ main = do
     argv <- getArgs
     case argv of
         (redis_host:dir:[]) -> do
-            dump_main redis_host dir
+            dumpMain (redisHost redis_host) dir
         _ -> usage
