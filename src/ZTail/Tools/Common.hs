@@ -5,7 +5,6 @@
 
 module ZTail.Tools.Common (
     HostDataWrapper (..),
-    Dump (..),
     tp'pack,
     tp'unpack,
     pack,
@@ -22,10 +21,8 @@ module ZTail.Tools.Common (
 ) where
 
 import ZTail
-import Control.Monad
 import Data.Aeson
 import Data.Maybe
-import Data.Int
 import Data.List.Split
 
 import Control.Exception
@@ -39,11 +36,6 @@ import qualified Data.ByteString.Char8 as BSC
 
 import GHC.Generics
 
-data Dump = Dump {
- _dir :: String,
- _all :: String
-} deriving (Show, Read)
-
 data HostDataWrapper a = HostDataWrapper {
     h :: String,
     d :: a
@@ -55,7 +47,10 @@ instance ToJSON (HostDataWrapper TailPacket)
 port :: Int
 port = 60002
 
+tp'pack :: ToJSON a => a -> BSC.ByteString
 tp'pack v = lazyToStrict $ encode v
+
+tp'unpack :: BSC.ByteString -> HostDataWrapper TailPacket
 tp'unpack v = fromJust $ (decode (strictToLazy v) :: Maybe (HostDataWrapper TailPacket))
 
 pack :: HostDataWrapper TailPacket -> BS.ByteString
@@ -67,16 +62,23 @@ unpack v = fromJust $ decode $ strictToLazy v
 unpack' :: BS.ByteString -> HostDataWrapper TailPacket
 unpack' v = fromJust $ decode' $ strictToLazy v
 
+strictToLazy :: BSC.ByteString -> BSL.ByteString
 strictToLazy v = BSL.fromChunks [v]
+
+lazyToStrict :: BSL.ByteString -> BSC.ByteString
 lazyToStrict v = BS.concat $ BSL.toChunks v
+
+encode'bsc :: ToJSON a => a -> BSC.ByteString
 encode'bsc v = lazyToStrict $ encode v
 
 safeConnect :: Redis.ConnectInfo -> (Redis.Connection -> IO ()) -> IO ()
-safeConnect redis_ci cb = do
+safeConnect host cb = do
     catches
         (do
-            q <- Redis.connect Redis.defaultConnectInfo
-            cb q
+            bracket
+                (do Redis.connect Redis.defaultConnectInfo)
+                (\q -> Redis.runRedis q $ Redis.quit)
+                (\q -> cb q)
         )
         [Handler someExceptionHandler, Handler redisExceptionHandler]
     where
@@ -86,13 +88,7 @@ safeConnect redis_ci cb = do
         redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
         redisExceptionHandler e = putErr e >> sleep 1
 
-{-
-    bracket
-        (do Redis.connect Redis.defaultConnectInfo)
-        (\q -> cb q)
-        (\_ -> return ())
--}
-
+sleep :: Int -> IO ()
 sleep n = threadDelay (n * 1000000)
 
 splitRedisHosts :: String -> [Redis.ConnectInfo]

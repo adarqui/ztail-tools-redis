@@ -5,14 +5,9 @@ module ZTail.Tools.Dump (
     dumpMain
 ) where
 
-import System.Environment
-
 import ZTail
 import Control.Monad
-import Control.Concurrent
 import Control.Concurrent.Async
-import Data.Aeson
-import Data.Maybe
 import Data.Int
 
 import System.Directory
@@ -20,41 +15,37 @@ import System.FilePath.Posix
 
 import qualified Database.Redis as Redis
 
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Lazy.Char8 as BSLC
-import qualified Data.ByteString.Char8 as BSC
-
 import qualified System.Metrics.Distribution as Distribution
 import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Gauge as Gauge
-import qualified System.Metrics.Label as Label
-import qualified System.Remote.Monitoring as Monitoring
 
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
+data Dump = Dump {
+    _dir :: String,
+    _all :: String
+} deriving (Show, Read)
+
 dumpMain :: [Redis.ConnectInfo] -> String -> IO ()
 dumpMain hosts dir = do
-    putStrLn "WTFFFFFFFFFFFFFFFFFFF"
-    mapM_ (putStrLn . Redis.connectHost) hosts
     ekg'bootstrap (port+1) (dumpMain' hosts dir)
 
 dumpMain' :: [Redis.ConnectInfo] -> String -> EKG -> IO ()
 dumpMain' hosts dir ekg = do
     forever $ do
         dumper hosts ekg dir
-        putStrLn "sleep"
 
+dumper :: [Redis.ConnectInfo] -> EKG -> String -> IO ()
 dumper hosts ekg dir = do
-    putStrLn "dumper"
     let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
     threads <- mapM (\host' -> async $ dump'Queues host' ekg dump) hosts
-    waitAnyCancel threads
+    _ <- waitAnyCancel threads
+    return ()
 
-dump'Queues hosts EKG{..} Dump{..} = do
-    putStrLn "dump'Queues"
-    safeConnect hosts $ \q -> do
+dump'Queues :: Redis.ConnectInfo -> EKG -> Dump -> IO ()
+dump'Queues host EKG{..} Dump{..} = do
+    safeConnect host $ \q -> do
         forever $ do
             result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
             case result of
