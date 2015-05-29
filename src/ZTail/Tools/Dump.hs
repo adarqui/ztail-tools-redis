@@ -8,61 +8,56 @@ module ZTail.Tools.Dump (
 import ZTail
 import Control.Monad
 import Control.Concurrent.Async
-import Data.Int
 
 import System.Directory
 import System.FilePath.Posix
 
 import qualified Database.Redis as Redis
 
-import qualified System.Metrics.Distribution as Distribution
-import qualified System.Metrics.Counter as Counter
-import qualified System.Metrics.Gauge as Gauge
-
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
-data Dump = Dump {
-    _dir :: String
-} deriving (Show, Read)
+data Dumper = Dumper {
+    redii :: [Redis.ConnectInfo],
+    dir :: String,
+    ekg :: EKG
+}
+
+newDumper :: [Redis.ConnectInfo] -> String -> EKG -> Dumper
+newDumper redii dir ekg =
+    Dumper {
+        redii = redii,
+        dir = dir,
+        ekg = ekg
+    }
 
 dumpMain :: [Redis.ConnectInfo] -> String -> IO ()
 dumpMain hosts dir = do
-    ekg'bootstrap (defaultPort+1) (dumpMain' hosts dir)
+    ekg'bootstrap (defaultPort+1) (runDumper . newDumper hosts dir)
 
-dumpMain' :: [Redis.ConnectInfo] -> String -> EKG -> IO ()
-dumpMain' hosts dir ekg = do
-    forever $ do
-        dumper hosts ekg dir
+runDumper :: Dumper -> IO ()
+runDumper dump@Dumper{..} = do
+    mapM_ (\redis -> async $ dumpQueues dump redis) redii
+    getLineLoop
 
-dumper :: [Redis.ConnectInfo] -> EKG -> String -> IO ()
-dumper hosts ekg dir = do
-    let dump = Dump { _dir = dir }
-    threads <- mapM (\host' -> async $ dumpQueues host' ekg dump) hosts
-    _ <- waitAnyCancel threads
-    return ()
-
-dumpQueues :: Redis.ConnectInfo -> EKG -> Dump -> IO ()
-dumpQueues host EKG{..} Dump{..} = do
-    safeConnect host $ \q -> do
+dumpQueues :: Dumper -> Redis.ConnectInfo -> IO ()
+dumpQueues Dumper{..} redis = do
+    forever $ safeConnect redis $ \conn -> do
         forever $ do
-            result <- Redis.runRedis q $ Redis.blpop [defaultQueueName] defaultBLPopTimeout
+            result <- Redis.runRedis conn $ Redis.blpop [defaultQueueName] defaultBLPopTimeout
             case result of
                 (Left err) -> putStrLn (show err)
-                (Right Nothing) -> putStrLn "nothing"
-                (Right (Just tp)) -> do
-                    case (unpack (snd tp)) of
-                        (Just tp') -> do
-                            let d' = (d tp')
-                            let buf' = (buf d' ++ "\n")
-                            let logpath = (_dir ++ "/" ++ (h tp') ++ "/" ++ (path d'))
+                (Right Nothing) -> return ()
+                (Right (Just resultValue)) -> do
+                    case (unpack (snd resultValue)) of
+                        (Just tailPacket) -> do
+                            let tailDir = (d tailPacket)
+                            let buf' = (buf tailDir ++ "\n")
+                            let logpath = (dir ++ "/" ++ (h tailPacket) ++ "/" ++ (path tailDir))
                             let basename = takeDirectory logpath
-                            let len = length (buf d')
+                            let len = length (buf tailDir)
                             createDirectoryIfMissing True basename
                             appendFile logpath buf'
-                            Counter.inc _logCounter
-                            Gauge.add _lengthGauge (fromIntegral len :: Int64)
-                            Distribution.add _logDistribution (fromIntegral len :: Double)
+                            updateSuccessfulEkgStats ekg len
                             return ()
-                        Nothing -> do
-                            sleep 1
+                        Nothing -> return ()
