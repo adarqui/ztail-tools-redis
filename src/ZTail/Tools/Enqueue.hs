@@ -71,7 +71,6 @@ runSink enq@Enqueuer{..} bc = do
     safeConnect redis $ \conn ->
         forever $ do
             ztailPacket <- readChan bc
-            putStrLn "GOT TP"
             relayTailPacket enq conn ztailPacket
 
 relayTailPacket :: Enqueuer -> Redis.Connection -> TailPacket -> IO ()

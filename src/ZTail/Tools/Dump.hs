@@ -46,7 +46,7 @@ dumpQueues Dumper{..} redis = do
         forever $ do
             result <- Redis.runRedis conn $ Redis.blpop [defaultQueueName] defaultBLPopTimeout
             case result of
-                (Left err) -> putStrLn (show err)
+                (Left err) -> logErr (show err)
                 (Right Nothing) -> return ()
                 (Right (Just resultValue)) -> do
                     case (unpack (snd resultValue)) of

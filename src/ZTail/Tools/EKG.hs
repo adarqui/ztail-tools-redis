@@ -34,6 +34,7 @@ data EKG = EKG {
 getLineLoop :: IO ()
 getLineLoop = forever $ getLine
 
+-- Setup ztail EKG metrics to monitor
 ekg'bootstrap :: Int -> (EKG -> IO b) -> IO b
 ekg'bootstrap port io = do
     argv <- getArgs
@@ -69,6 +70,7 @@ updateFailureEkgStats :: EKG -> IO ()
 updateFailureEkgStats EKG{..} = do
     Counter.inc _errorCounter
 
+-- Tells us how long it took to perform an IO computation
 timed :: IO a -> IO Double
 timed m = do
     start <- getTime

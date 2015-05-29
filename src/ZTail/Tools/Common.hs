@@ -22,13 +22,17 @@ module ZTail.Tools.Common (
     secToMsec,
     sleep,
     splitRedisHosts,
-    redisHost
+    redisHost,
+    logOut,
+    logErr
 ) where
 
 import ZTail
 import Data.Aeson
 import Data.Maybe
 import Data.List.Split
+
+import System.IO
 
 import Control.Exception
 import Control.Concurrent
@@ -40,6 +44,8 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Char8 as BSC
 
 import GHC.Generics
+
+import Prelude hiding (log)
 
 data HostDataWrapper = HostDataWrapper {
     h :: String,
@@ -64,6 +70,7 @@ defaultQueueName = "ztail"
 defaultPort :: Int
 defaultPort = 60002
 
+-- begin crazyness
 tp'pack :: ToJSON a => a -> BSC.ByteString
 tp'pack v = lazyToStrict $ encode v
 
@@ -87,24 +94,16 @@ lazyToStrict v = BS.concat $ BSL.toChunks v
 
 encode'bsc :: ToJSON a => a -> BSC.ByteString
 encode'bsc v = lazyToStrict $ encode v
+-- end crazyness
 
 safeConnect :: Redis.ConnectInfo -> (Redis.Connection -> IO ()) -> IO ()
 safeConnect host cb = do
-    catches
-        (do
-            bracket
-                (do Redis.connect host)
-                (\q -> Redis.runRedis q $ Redis.quit)
-                (\q -> cb q)
-        )
-        [Handler someExceptionHandler, Handler redisExceptionHandler]
-    where
-        putErr e = putStrLn $ "safeConnect: " ++ show e
-        someExceptionHandler :: SomeException -> IO ()
-        someExceptionHandler e = putStrLn "SomeException" >> putErr e >> sleep 1
-        redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
-        redisExceptionHandler e = putStrLn "ConnectionLostException" >> putErr e >> sleep 1
+    bracketOnError
+        (logOut "Connecting.." >> Redis.connect host)
+        (\_ -> logErr "Disconnected." >> sleep 1 >> safeConnect host cb)
+        (\conn -> logOut "Connected." >> cb conn)
 
+secToMsec :: Int -> Int
 secToMsec n = n * 1000000
 
 sleep :: Int -> IO ()
@@ -115,3 +114,9 @@ splitRedisHosts s = map redisHost $ splitOn "," s
 
 redisHost :: String -> Redis.ConnectInfo
 redisHost host = Redis.defaultConnectInfo { Redis.connectHost = host }
+
+logErr :: String -> IO ()
+logErr msg = hPutStrLn stderr $ "ztail: " ++ msg
+
+logOut :: String -> IO ()
+logOut msg = putStrLn $ "ztail: " ++ msg
