@@ -25,18 +25,36 @@ import qualified System.Metrics.Gauge as Gauge
 import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
+data Enqueuer = Enqueuer {
+    hostId :: String,
+    redis :: Redis.ConnectInfo,
+    ztailParams :: [String],
+    ekg :: EKG
+}
+
 enqueueMain :: String -> Redis.ConnectInfo -> [String] -> IO ()
 enqueueMain host_id host params = do
-    ekg'bootstrap defaultPort (enqueueMain' host_id host params)
+--    ekg'bootstrap defaultPort (enqueueMain' host_id host params)
+    ekg'bootstrap defaultPort (runEnqueuer . newEnqueuer host_id host params)
 
-enqueueMain' :: String -> Redis.ConnectInfo -> [String] -> EKG -> IO ()
-enqueueMain' host_id host params ekg = do
+newEnqueuer :: String -> Redis.ConnectInfo -> [String] -> EKG -> Enqueuer
+newEnqueuer host_id host ztail_params ekg =
+    Enqueuer {
+        hostId = host_id,
+        redis = host,
+        ztailParams = ztail_params,
+        ekg = ekg
+    }
+
+runEnqueuer :: Enqueuer -> IO ()
+runEnqueuer enq@Enqueuer{..} = do
+    -- Create a new bounded channel which caps out at defaultBoundedChanSize
     bc <- newBoundedChan defaultBoundedChanSize
     forkIO $ do
         forever $ do
-            tails <- parse_args params
-            run_main params tailText $
-                map (\t -> t { ioAct = \_ tp -> do
+            tails <- parse_args ztailParams
+            run_main ztailParams tailText $
+                map (\tail -> tail { ioAct = \_ tailPacket -> do
                     forkIO $ do
                         -- A timeout is necessary since every log entry creates it's
                         -- own thread & we are using a bounded channel. Without a timeout,
@@ -44,41 +62,41 @@ enqueueMain' host_id host params ekg = do
                         -- we allow them to fill up the bounded channel,  block for the
                         -- specified timeout, then die if the -- system is overloaded
                         -- or unable to connect to redis.
-                        timeout (secToMsec defaultThreadTimeout) $ writeChan bc tp
+                        timeout (secToMsec defaultThreadTimeout) $ writeChan bc tailPacket
                         putStrLn "done writing to chan"
                     return ()
                 })
                 tails
     forever $ do
-        sink bc host_id host ekg
+        runSink enq bc
 
-sink :: BoundedChan TailPacket -> String -> Redis.ConnectInfo -> EKG -> IO ()
-sink bc host_id host ekg = do
-    let wrapper = HostDataWrapper { h = host_id, d = TailPacket{} }
-    safeConnect host $ \q ->
+runSink :: Enqueuer -> BoundedChan TailPacket -> IO ()
+runSink enq@Enqueuer{..} bc = do
+    safeConnect redis $ \conn ->
         forever $ do
-            tp <- readChan bc
+            tailPacket <- readChan bc
             putStrLn "GOT TP"
-            relay ekg wrapper q tp
+            relayTailPacket enq conn tailPacket
 
-relay :: EKG -> HostDataWrapper -> Redis.Connection -> TailPacket -> IO ()
-relay ekg wrapper q tp = do
+relayTailPacket :: Enqueuer -> Redis.Connection -> TailPacket -> IO ()
+relayTailPacket enq@Enqueuer{..} conn tailPacket = do
     putStrLn "relay"
     catches
-        (do relay' ekg wrapper q tp)
+        (do relayTailPacket' enq conn tailPacket)
         [Handler someExceptionHandler, Handler redisExceptionHandler]
     where
         putErr e = putStrLn $ "relay: " ++ show e
         someExceptionHandler :: SomeException -> IO ()
-        someExceptionHandler e = putStrLn "SomeException" >> putErr e >> sleep 1 >> relay ekg wrapper q tp
+        someExceptionHandler e = putStrLn "SomeException" >> putErr e >> sleep 1 >> relayTailPacket enq conn tailPacket
         redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
-        redisExceptionHandler e = putStrLn "ConnectionLost" >> sleep 1 >> relay ekg wrapper q tp
+        redisExceptionHandler e = putStrLn "ConnectionLost" >> sleep 1 >> relayTailPacket enq conn tailPacket
 
-relay' :: EKG -> HostDataWrapper -> Redis.Connection -> TailPacket -> IO ()
-relay' EKG{..} wrapper q tp = do
-    let tp' = tp'pack $ wrapper { d = tp }
-    result <- Redis.runRedis q $ do Redis.rpush defaultQueueName [tp']
-    let len = length $ buf tp
-    Counter.inc _logCounter
-    Gauge.add _lengthGauge (fromIntegral len :: Int64)
-    Distribution.add _logDistribution (fromIntegral len :: Double)
+relayTailPacket' :: Enqueuer -> Redis.Connection -> TailPacket -> IO ()
+relayTailPacket' enq@Enqueuer{..} conn tailPacket = do
+    let
+        tpWrapped = tp'pack $ HostDataWrapper { h = hostId, d = tailPacket }
+        len = length $ buf tailPacket
+    result <- Redis.runRedis conn $ do Redis.rpush defaultQueueName [tpWrapped]
+    Counter.inc (_logCounter ekg)
+    Gauge.add (_lengthGauge ekg) (fromIntegral len :: Int64)
+    Distribution.add (_logDistribution ekg) (fromIntegral len :: Double)
