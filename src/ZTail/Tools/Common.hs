@@ -33,6 +33,7 @@ import Data.Maybe
 import Data.List.Split
 
 import System.IO
+import Network
 
 import Control.Exception
 import Control.Concurrent
@@ -113,7 +114,12 @@ splitRedisHosts :: String -> [Redis.ConnectInfo]
 splitRedisHosts s = map redisHost $ splitOn "," s
 
 redisHost :: String -> Redis.ConnectInfo
-redisHost host = Redis.defaultConnectInfo { Redis.connectHost = host }
+redisHost host =
+    case (splitOn ":" host) of
+        [] -> Redis.defaultConnectInfo { Redis.connectHost = host }
+        (host':[]) -> Redis.defaultConnectInfo { Redis.connectHost = host' }
+        (host':port':[]) -> Redis.defaultConnectInfo { Redis.connectHost = host', Redis.connectPort = (PortNumber (fromIntegral (read port' :: Int))) }
+        _ -> error "Invalid host specification."
 
 logErr :: String -> IO ()
 logErr msg = hPutStrLn stderr $ "ztail: " ++ msg
