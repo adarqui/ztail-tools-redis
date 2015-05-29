@@ -50,9 +50,10 @@ enqueueMain' host_id host params ekg = do
                 })
                 tails
     forever $ do
-        sink bc host_id host params ekg
+        sink bc host_id host ekg
 
-sink bc host_id host params ekg = do
+sink :: BoundedChan TailPacket -> String -> Redis.ConnectInfo -> EKG -> IO ()
+sink bc host_id host ekg = do
     let wrapper = HostDataWrapper { h = host_id, d = TailPacket{} }
     safeConnect host $ \q ->
         forever $ do
@@ -60,6 +61,7 @@ sink bc host_id host params ekg = do
             putStrLn "GOT TP"
             relay ekg wrapper q tp
 
+relay :: EKG -> HostDataWrapper -> Redis.Connection -> TailPacket -> IO ()
 relay ekg wrapper q tp = do
     putStrLn "relay"
     catches
@@ -72,6 +74,7 @@ relay ekg wrapper q tp = do
         redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
         redisExceptionHandler e = putStrLn "ConnectionLost" >> sleep 1 >> relay ekg wrapper q tp
 
+relay' :: EKG -> HostDataWrapper -> Redis.Connection -> TailPacket -> IO ()
 relay' EKG{..} wrapper q tp = do
     let tp' = tp'pack $ wrapper { d = tp }
     result <- Redis.runRedis q $ do Redis.rpush defaultQueueName [tp']
