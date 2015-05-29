@@ -1,5 +1,7 @@
 # ztail-tools-redis
 
+EXPERIMENTAL LOG SHUTTLE.
+
 Simple tool to shuttle logs from various servers via a ztail-enqueue agent, to a centralized dump server (ztail-dump). This tool is for INTERNAL use.
 
 Similar to ZTail-Tools. The two differences:
