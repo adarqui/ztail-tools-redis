@@ -53,7 +53,7 @@ enqueueMain' host_id host params ekg = do
         sink bc host_id host params ekg
 
 sink bc host_id host params ekg = do
-    let wrapper = HostDataWrapper { h = host_id, d = "" }
+    let wrapper = HostDataWrapper { h = host_id, d = TailPacket{} }
     safeConnect host $ \q ->
         forever $ do
             tp <- readChan bc

@@ -41,13 +41,13 @@ import qualified Data.ByteString.Char8 as BSC
 
 import GHC.Generics
 
-data HostDataWrapper a = HostDataWrapper {
+data HostDataWrapper = HostDataWrapper {
     h :: String,
-    d :: a
+    d :: TailPacket
 } deriving (Show, Read, Generic)
 
-instance FromJSON (HostDataWrapper TailPacket)
-instance ToJSON (HostDataWrapper TailPacket)
+instance FromJSON HostDataWrapper
+instance ToJSON HostDataWrapper
 
 defaultBoundedChanSize :: Int
 defaultBoundedChanSize = 100
@@ -67,16 +67,16 @@ defaultPort = 60002
 tp'pack :: ToJSON a => a -> BSC.ByteString
 tp'pack v = lazyToStrict $ encode v
 
-tp'unpack :: BSC.ByteString -> HostDataWrapper TailPacket
-tp'unpack v = fromJust $ (decode (strictToLazy v) :: Maybe (HostDataWrapper TailPacket))
+tp'unpack :: BSC.ByteString -> HostDataWrapper
+tp'unpack v = fromJust $ (decode (strictToLazy v) :: Maybe HostDataWrapper)
 
-pack :: HostDataWrapper TailPacket -> BS.ByteString
+pack :: HostDataWrapper -> BS.ByteString
 pack tp = lazyToStrict $ encode $ tp
 
-unpack :: BS.ByteString -> Maybe (HostDataWrapper TailPacket)
+unpack :: BS.ByteString -> Maybe HostDataWrapper
 unpack v = fromJust $ decode $ strictToLazy v
 
-unpack' :: BS.ByteString -> HostDataWrapper TailPacket
+unpack' :: BS.ByteString -> HostDataWrapper
 unpack' v = fromJust $ decode' $ strictToLazy v
 
 strictToLazy :: BSC.ByteString -> BSL.ByteString
