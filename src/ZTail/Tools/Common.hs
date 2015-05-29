@@ -57,7 +57,7 @@ instance FromJSON HostDataWrapper
 instance ToJSON HostDataWrapper
 
 defaultBoundedChanSize :: Int
-defaultBoundedChanSize = 100
+defaultBoundedChanSize = 1024
 
 defaultThreadTimeout :: Int
 defaultThreadTimeout = 5
