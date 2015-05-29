@@ -5,6 +5,11 @@
 
 module ZTail.Tools.Common (
     HostDataWrapper (..),
+    defaultQueueName,
+    defaultPort,
+    defaultBoundedChanSize,
+    defaultThreadTimeout,
+    defaultBLPopTimeout,
     tp'pack,
     tp'unpack,
     pack,
@@ -13,8 +18,8 @@ module ZTail.Tools.Common (
     strictToLazy,
     lazyToStrict,
     encode'bsc,
-    port,
     safeConnect,
+    secToMsec,
     sleep,
     splitRedisHosts,
     redisHost
@@ -44,8 +49,20 @@ data HostDataWrapper a = HostDataWrapper {
 instance FromJSON (HostDataWrapper TailPacket)
 instance ToJSON (HostDataWrapper TailPacket)
 
-port :: Int
-port = 60002
+defaultBoundedChanSize :: Int
+defaultBoundedChanSize = 100
+
+defaultThreadTimeout :: Int
+defaultThreadTimeout = 5
+
+defaultBLPopTimeout :: Integer
+defaultBLPopTimeout = 30
+
+defaultQueueName :: BS.ByteString
+defaultQueueName = "ztail"
+
+defaultPort :: Int
+defaultPort = 60002
 
 tp'pack :: ToJSON a => a -> BSC.ByteString
 tp'pack v = lazyToStrict $ encode v
@@ -76,20 +93,22 @@ safeConnect host cb = do
     catches
         (do
             bracket
-                (do Redis.connect Redis.defaultConnectInfo)
+                (do Redis.connect host)
                 (\q -> Redis.runRedis q $ Redis.quit)
                 (\q -> cb q)
         )
         [Handler someExceptionHandler, Handler redisExceptionHandler]
     where
-        putErr e = putStrLn $ "connectEndpoints: " ++ show e
+        putErr e = putStrLn $ "safeConnect: " ++ show e
         someExceptionHandler :: SomeException -> IO ()
-        someExceptionHandler e = putErr e >> sleep 1
+        someExceptionHandler e = putStrLn "SomeException" >> putErr e >> sleep 1
         redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
-        redisExceptionHandler e = putErr e >> sleep 1
+        redisExceptionHandler e = putStrLn "ConnectionLostException" >> putErr e >> sleep 1
+
+secToMsec n = n * 1000000
 
 sleep :: Int -> IO ()
-sleep n = threadDelay (n * 1000000)
+sleep n = threadDelay $ secToMsec n
 
 splitRedisHosts :: String -> [Redis.ConnectInfo]
 splitRedisHosts s = map redisHost $ splitOn "," s

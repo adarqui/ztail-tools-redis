@@ -9,8 +9,12 @@ import ZTail
 import Control.Monad
 import Data.Int
 
-import Control.Concurrent
+import Control.Exception
+import Control.Concurrent hiding (Chan, getChanContents, readChan, writeChan)
 import Control.Concurrent.MVar
+import Control.Concurrent.BoundedChan
+
+import System.Timeout
 
 import qualified Database.Redis as Redis
 
@@ -23,27 +27,54 @@ import ZTail.Tools.Common
 
 enqueueMain :: String -> Redis.ConnectInfo -> [String] -> IO ()
 enqueueMain host_id host params = do
-    ekg'bootstrap port (enqueueMain' host_id host params)
+    ekg'bootstrap defaultPort (enqueueMain' host_id host params)
 
 enqueueMain' :: String -> Redis.ConnectInfo -> [String] -> EKG -> IO ()
 enqueueMain' host_id host params ekg = do
-    mv <- newEmptyMVar
+    bc <- newBoundedChan defaultBoundedChanSize
     forkIO $ do
         forever $ do
             tails <- parse_args params
-            run_main params tailText $ map (\t -> t { ioAct = \_ tp -> (putStrLn (show tp) >> putMVar mv tp) }) tails
+            run_main params tailText $
+                map (\t -> t { ioAct = \_ tp -> do
+                    forkIO $ do
+                        -- A timeout is necessary since every log entry creates it's
+                        -- own thread & we are using a bounded channel. Without a timeout,
+                        -- each thread would block as log entries start filling up. Instead,
+                        -- we allow them to fill up the bounded channel,  block for the
+                        -- specified timeout, then die if the -- system is overloaded
+                        -- or unable to connect to redis.
+                        timeout (secToMsec defaultThreadTimeout) $ writeChan bc tp
+                        putStrLn "done writing to chan"
+                    return ()
+                })
+                tails
     forever $ do
-        sink mv host_id host params ekg
+        sink bc host_id host params ekg
 
-sink mv host_id host params ekg = do
+sink bc host_id host params ekg = do
     let wrapper = HostDataWrapper { h = host_id, d = "" }
-    safeConnect host $ \q -> do
+    safeConnect host $ \q ->
         forever $ do
-            tp <- takeMVar mv
+            tp <- readChan bc
+            putStrLn "GOT TP"
             relay ekg wrapper q tp
 
-relay EKG{..} wrapper q tp = do
-    result <- Redis.runRedis q $ do Redis.rpush "ztail" [tp'pack (wrapper { d = tp })]
+relay ekg wrapper q tp = do
+    putStrLn "relay"
+    catches
+        (do relay' ekg wrapper q tp)
+        [Handler someExceptionHandler, Handler redisExceptionHandler]
+    where
+        putErr e = putStrLn $ "relay: " ++ show e
+        someExceptionHandler :: SomeException -> IO ()
+        someExceptionHandler e = putStrLn "SomeException" >> putErr e >> sleep 1 >> relay ekg wrapper q tp
+        redisExceptionHandler :: Redis.ConnectionLostException -> IO ()
+        redisExceptionHandler e = putStrLn "ConnectionLost" >> sleep 1 >> relay ekg wrapper q tp
+
+relay' EKG{..} wrapper q tp = do
+    let tp' = tp'pack $ wrapper { d = tp }
+    result <- Redis.runRedis q $ do Redis.rpush defaultQueueName [tp']
     let len = length $ buf tp
     Counter.inc _logCounter
     Gauge.add _lengthGauge (fromIntegral len :: Int64)

@@ -23,13 +23,12 @@ import ZTail.Tools.EKG
 import ZTail.Tools.Common
 
 data Dump = Dump {
-    _dir :: String,
-    _all :: String
+    _dir :: String
 } deriving (Show, Read)
 
 dumpMain :: [Redis.ConnectInfo] -> String -> IO ()
 dumpMain hosts dir = do
-    ekg'bootstrap (port+1) (dumpMain' hosts dir)
+    ekg'bootstrap (defaultPort+1) (dumpMain' hosts dir)
 
 dumpMain' :: [Redis.ConnectInfo] -> String -> EKG -> IO ()
 dumpMain' hosts dir ekg = do
@@ -38,16 +37,16 @@ dumpMain' hosts dir ekg = do
 
 dumper :: [Redis.ConnectInfo] -> EKG -> String -> IO ()
 dumper hosts ekg dir = do
-    let dump = Dump { _dir = dir, _all = dir ++ "/all.log" }
-    threads <- mapM (\host' -> async $ dump'Queues host' ekg dump) hosts
+    let dump = Dump { _dir = dir }
+    threads <- mapM (\host' -> async $ dumpQueues host' ekg dump) hosts
     _ <- waitAnyCancel threads
     return ()
 
-dump'Queues :: Redis.ConnectInfo -> EKG -> Dump -> IO ()
-dump'Queues host EKG{..} Dump{..} = do
+dumpQueues :: Redis.ConnectInfo -> EKG -> Dump -> IO ()
+dumpQueues host EKG{..} Dump{..} = do
     safeConnect host $ \q -> do
         forever $ do
-            result <- Redis.runRedis q $ Redis.blpop ["ztail"] 30
+            result <- Redis.runRedis q $ Redis.blpop [defaultQueueName] defaultBLPopTimeout
             case result of
                 (Left err) -> putStrLn (show err)
                 (Right Nothing) -> putStrLn "nothing"
